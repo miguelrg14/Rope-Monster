@@ -1,0 +1,203 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feature/**", "fix/**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_PATH: RopeMonster
+  UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+  UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+  UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  test:
+    name: Unity tests (EditMode + PlayMode)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+
+      - uses: actions/checkout@v4
+
+      - name: List Git LFS objects
+        run: git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
+
+      - name: Cache Git LFS objects
+        uses: actions/cache@v4
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id') }}
+          restore-keys: lfs-
+
+      - name: Pull Git LFS objects
+        run: git lfs pull
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PROJECT_PATH }}/Library
+          key: library-test-${{ hashFiles('RopeMonster/Packages/packages-lock.json', 'RopeMonster/ProjectSettings/ProjectVersion.txt') }}-${{ github.sha }}
+          restore-keys: |
+            library-test-${{ hashFiles('RopeMonster/Packages/packages-lock.json', 'RopeMonster/ProjectSettings/ProjectVersion.txt') }}-
+            library-test-
+
+      - name: Run tests
+        id: tests
+        uses: game-ci/unity-test-runner@v4
+        with:
+          projectPath: ${{ env.PROJECT_PATH }}
+          testMode: all
+          artifactsPath: test-results
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: Unity test results
+          coverageOptions: generateAdditionalMetrics;generateHtmlReport;generateBadgeReport;assemblyFilters:+RopeMonster.Menu
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            ${{ steps.tests.outputs.artifactsPath }}
+            ${{ steps.tests.outputs.coveragePath }}
+
+  build-webgl:
+    name: Build WebGL
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+
+      - uses: actions/checkout@v4
+
+      - name: List Git LFS objects
+        run: git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
+
+      - name: Cache Git LFS objects
+        uses: actions/cache@v4
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id') }}
+          restore-keys: lfs-
+
+      - name: Pull Git LFS objects
+        run: git lfs pull
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PROJECT_PATH }}/Library
+          key: library-webgl-${{ hashFiles('RopeMonster/Packages/packages-lock.json', 'RopeMonster/ProjectSettings/ProjectVersion.txt') }}-${{ github.sha }}
+          restore-keys: |
+            library-webgl-${{ hashFiles('RopeMonster/Packages/packages-lock.json', 'RopeMonster/ProjectSettings/ProjectVersion.txt') }}-
+            library-webgl-
+
+      - name: Build
+        uses: game-ci/unity-builder@v4
+        with:
+          projectPath: ${{ env.PROJECT_PATH }}
+          targetPlatform: WebGL
+          buildName: RopeMonster
+          buildsPath: build
+          versioning: None
+
+      - name: Upload WebGL build
+        uses: actions/upload-artifact@v4
+        with:
+          name: webgl-build
+          path: build/WebGL/RopeMonster
+          if-no-files-found: error
+
+  e2e:
+    name: Browser smoke test
+    needs: build-webgl
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Download WebGL build
+        uses: actions/download-artifact@v4
+        with:
+          name: webgl-build
+          path: e2e/site
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Play the game in headless Chromium
+        working-directory: e2e
+        run: npx playwright test
+
+      - name: Upload screenshots and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: |
+            e2e/screenshots
+            e2e/test-results
+            e2e/playwright-report
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: e2e
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download WebGL build
+        uses: actions/download-artifact@v4
+        with:
+          name: webgl-build
+          path: site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

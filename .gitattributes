@@ -1,0 +1,21 @@
+* text=auto
+*.cs text diff=csharp
+*.unity    merge=unityyamlmerge eol=lf
+*.prefab   merge=unityyamlmerge eol=lf
+*.asset    merge=unityyamlmerge eol=lf
+*.meta     merge=unityyamlmerge eol=lf
+*.mat      merge=unityyamlmerge eol=lf
+*.anim     merge=unityyamlmerge eol=lf
+*.controller merge=unityyamlmerge eol=lf
+*.mixer    merge=unityyamlmerge eol=lf
+*.png binary
+*.jpg binary
+*.psd binary
+*.ogg binary
+*.wav binary
+*.flac binary
+*.flp binary
+*.ttf binary
+*.otf binary
+*.fbx binary
+*.pdf binary

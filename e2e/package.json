@@ -1,0 +1,12 @@
+{
+  "name": "rope-monster-e2e",
+  "private": true,
+  "description": "Plays the Rope Monster WebGL build in headless Chromium.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "pngjs": "^7.0.0"
+  }
+}

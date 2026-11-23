@@ -1,0 +1,66 @@
+# Unity (project lives in RopeMonster/)
+# Based on https://github.com/github/gitignore/blob/main/Unity.gitignore
+RopeMonster/[Ll]ibrary/
+RopeMonster/[Tt]emp/
+RopeMonster/[Oo]bj/
+RopeMonster/[Bb]uild/
+RopeMonster/[Bb]uilds/
+RopeMonster/[Ll]ogs/
+RopeMonster/[Uu]ser[Ss]ettings/
+RopeMonster/[Mm]emoryCaptures/
+RopeMonster/[Rr]ecordings/
+RopeMonster/Assets/Plugins/Editor/JetBrains*
+RopeMonster/Assets/[Ii]nit[Tt]est[Ss]cene*.unity*
+RopeMonster/Assets/Unity.VisualScripting.Generated/VisualScripting.Flow/UnitOptions.db*
+RopeMonster/Assets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers*
+.utmp/
+*.log
+*.blend1
+*.blend1.meta
+
+# IDE / generated project files
+.vs/
+.vscode/
+.idea/
+.gradle/
+.consulo/
+ExportedObj/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.DotSettings.user
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+sysinfo.txt
+mono_crash.*
+crashlytics-build.properties
+
+# Builds and CI outputs
+*.apk
+*.aab
+*.app
+*.unitypackage
+*.unitypackage.meta
+build/
+artifacts/
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
+*~

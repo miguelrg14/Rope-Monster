@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+env:
+  PROJECT_PATH: RopeMonster
+  UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+  UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+  UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.targetPlatform }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 1 # a Unity Personal licence allows a limited number of activations
+      matrix:
+        targetPlatform: [Android, WebGL]
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: true
+
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Version from tag
+        id: version
+        run: echo "number=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PROJECT_PATH }}/Library
+          key: library-release-${{ matrix.targetPlatform }}-${{ github.sha }}
+          restore-keys: library-release-${{ matrix.targetPlatform }}-
+
+      - name: Build
+        uses: game-ci/unity-builder@v4
+        with:
+          projectPath: ${{ env.PROJECT_PATH }}
+          targetPlatform: ${{ matrix.targetPlatform }}
+          buildName: RopeMonster
+          buildsPath: build
+          versioning: Custom
+          version: ${{ steps.version.outputs.number }}
+          androidExportType: androidPackage
+          androidVersionCode: ${{ github.run_number }}
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          if [ "${{ matrix.targetPlatform }}" = "Android" ]; then
+            cp build/Android/RopeMonster.apk "dist/RopeMonster-${GITHUB_REF_NAME}.apk"
+          else
+            (cd build/WebGL/RopeMonster && zip -qr "$GITHUB_WORKSPACE/dist/RopeMonster-${GITHUB_REF_NAME}-WebGL.zip" .)
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.targetPlatform }}
+          path: dist/*
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
